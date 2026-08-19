@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="core_api.Dashboard">
+        <div class="o_core_api_dashboard p-3 h-100 overflow-auto">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <label class="text-muted small text-uppercase mb-0" for="core_api_module_filter">Module</label>
+                <select id="core_api_module_filter" class="form-select form-select-sm w-auto"
+                        t-on-change="onModuleChange">
+                    <option value="" t-att-selected="selectValue === ''">All modules</option>
+                    <t t-foreach="moduleOptions" t-as="opt" t-key="opt.value">
+                        <option t-att-value="opt.value" t-esc="opt.label"
+                                t-att-selected="selectValue === opt.value"/>
+                    </t>
+                </select>
+            </div>
+
+            <div class="row g-3">
+                <div t-foreach="state.windows" t-as="win" t-key="win.days" class="col-12 col-sm-6 col-xl-3">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body cursor-pointer" t-on-click="() => this.onWindowClick(win)">
+                            <div class="text-muted small text-uppercase">
+                                Last <t t-esc="win.days"/> day<t t-if="win.days > 1">s</t>
+                            </div>
+                            <div class="display-6 fw-bold" t-esc="win.total"/>
+                            <div class="d-flex gap-3 mt-2">
+                                <div class="text-success"
+                                     t-on-click.stop="() => this.onWindowClick(win, 'success')">
+                                    <span class="fw-bold" t-esc="win.success"/>
+                                    <span class="small"> ok (<t t-esc="win.success_pct"/>%)</span>
+                                </div>
+                                <div class="text-danger"
+                                     t-on-click.stop="() => this.onWindowClick(win, 'error')">
+                                    <span class="fw-bold" t-esc="win.failed"/>
+                                    <span class="small"> fail (<t t-esc="win.failed_pct"/>%)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <t t-set="heading" t-value="{module: 'Calls by module', endpoint: 'Calls by endpoint', path: 'Calls by path'}[state.breakdown_by] + (moduleLabel ? ' – ' + moduleLabel : '')"/>
+            <div class="row g-3 mt-0">
+                <div class="col-12 col-lg-6">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title"><t t-esc="heading"/> – last 30 days</h5>
+                            <p t-if="!state.breakdown.length" class="text-muted mb-0">No API call logged yet.</p>
+                            <div t-else="" style="height: 320px;">
+                                <canvas t-ref="chart"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">Breakdown</h5>
+                            <p t-if="!state.breakdown.length" class="text-muted mb-0">Nothing to show.</p>
+                            <table t-else="" class="table table-sm table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th class="text-end">Calls</th>
+                                        <th class="text-end">% of total</th>
+                                        <th class="text-end">Ok</th>
+                                        <th class="text-end">Fail</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="state.breakdown" t-as="row" t-key="row.label"
+                                        class="cursor-pointer" t-on-click="() => this.onRowClick(row)">
+                                        <td>
+                                            <span class="d-inline-block me-2 rounded"
+                                                  t-attf-style="width: 10px; height: 10px; background-color: {{ color(row_index) }};"/>
+                                            <t t-esc="row.label"/>
+                                        </td>
+                                        <td class="text-end" t-esc="row.count"/>
+                                        <td class="text-end"><t t-esc="row.pct"/>%</td>
+                                        <td class="text-end text-success" t-esc="row.success"/>
+                                        <td class="text-end text-danger" t-esc="row.failed"/>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>

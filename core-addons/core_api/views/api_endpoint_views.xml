@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- rows are written by the route sweep, never by hand: the whole model is
+         read-only and the only allowed change is the enable/disable button -->
+    <record id="view_core_api_endpoint_list" model="ir.ui.view">
+        <field name="name">core.api.endpoint.list</field>
+        <field name="model">core.api.endpoint</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false"
+                  decoration-muted="not enabled" decoration-warning="stale">
+                <field name="enabled" widget="boolean_toggle" readonly="1"/>
+                <field name="method"/>
+                <field name="route"/>
+                <field name="module_id"/>
+                <field name="name"/>
+                <field name="stale" optional="show"/>
+                <field name="request_schema" optional="hide"/>
+                <button name="action_disable" type="object" string="Disable"
+                        icon="fa-ban" invisible="not enabled"
+                        confirm="Disable this endpoint? Every call to it will
+                                 answer 503 until it is enabled again."/>
+                <button name="action_enable" type="object" string="Enable"
+                        icon="fa-play" invisible="enabled"
+                        confirm="Enable this endpoint? It starts serving
+                                 requests again immediately."/>
+                <button name="action_view_logs" type="object"
+                        string="Logs" icon="fa-list"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_core_api_endpoint_form" model="ir.ui.view">
+        <field name="name">core.api.endpoint.form</field>
+        <field name="model">core.api.endpoint</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_disable" type="object" string="Disable"
+                            class="btn-danger" invisible="not enabled"
+                            confirm="Disable this endpoint? Every call to it will
+                                     answer 503 until it is enabled again."/>
+                    <button name="action_enable" type="object" string="Enable"
+                            class="btn-primary" invisible="enabled"
+                            confirm="Enable this endpoint? It starts serving
+                                     requests again immediately."/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_logs" type="object"
+                                class="oe_stat_button" icon="fa-list">
+                            <span class="o_stat_text">Logs</span>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Disabled" bg_color="text-bg-danger"
+                            invisible="enabled"/>
+                    <widget name="web_ribbon" title="Gone from code"
+                            bg_color="text-bg-warning" invisible="not stale or not enabled"/>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="module_api_enabled or not module_id">
+                        This module's API is switched off in API &gt; API Modules,
+                        so this route answers 503 whatever its own switch says.
+                    </div>
+                    <group>
+                        <field name="route"/>
+                        <field name="method"/>
+                        <field name="module_id"/>
+                        <field name="module_api_enabled" invisible="1"/>
+                        <field name="name"/>
+                        <field name="enabled" widget="boolean_toggle" readonly="1"/>
+                        <field name="stale"/>
+                    </group>
+                    <notebook invisible="not request_schema and not response_schema">
+                        <page string="Request Schema" invisible="not request_schema">
+                            <field name="request_schema" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                        <page string="Response Schema" invisible="not response_schema">
+                            <field name="response_schema" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_core_api_endpoint_kanban" model="ir.ui.view">
+        <field name="name">core.api.endpoint.kanban</field>
+        <field name="model">core.api.endpoint</field>
+        <field name="arch" type="xml">
+            <!-- group_* off: the columns are ir.module.module records, the
+                 column menu must not offer to edit or delete them -->
+            <kanban create="false" default_group_by="module_id"
+                    group_create="false" group_edit="false" group_delete="false"
+                    class="o_core_api_endpoint_kanban">
+                <field name="enabled"/>
+                <field name="stale"/>
+                <field name="method"/>
+                <field name="method_color"/>
+                <field name="state_bar"/>
+                <templates>
+                    <!-- border-0/shadow-none/p-0 land on .o_kanban_record itself,
+                         dropping odoo's default card frame so only the toast shows -->
+                    <t t-name="card" class="border-0 shadow-none p-0 mb-2">
+                        <!-- toast look: full-height colour bar, then the body -->
+                        <div class="d-flex align-items-stretch rounded overflow-hidden shadow-sm">
+                            <div t-attf-class="flex-shrink-0 {{ record.state_bar.raw_value }}"
+                                 style="width: 5px;"/>
+                            <div class="flex-grow-1 ps-2 py-1">
+                                <div class="text-truncate">
+                                    <span t-attf-class="badge me-1 {{ record.method_color.raw_value }}">
+                                        <field name="method"/>
+                                    </span>
+                                    <span class="fw-bold"><field name="route"/></span>
+                                </div>
+                                <div class="text-muted small">
+                                    <field name="name"/>
+                                </div>
+                                <div class="mt-2">
+                                    <button name="action_disable" type="object"
+                                            class="btn btn-sm btn-outline-danger"
+                                            invisible="not enabled"
+                                            confirm="Disable this endpoint? Every call to it
+                                                     will answer 503 until it is enabled again.">
+                                        Disable
+                                    </button>
+                                    <button name="action_enable" type="object"
+                                            class="btn btn-sm btn-outline-primary"
+                                            invisible="enabled"
+                                            confirm="Enable this endpoint? It starts serving
+                                                     requests again immediately.">
+                                        Enable
+                                    </button>
+                                    <button name="action_view_logs" type="object"
+                                            class="btn btn-sm btn-link">Logs</button>
+                                </div>
+                                </div>
+                            </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_core_api_endpoint_search" model="ir.ui.view">
+        <field name="name">core.api.endpoint.search</field>
+        <field name="model">core.api.endpoint</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="method"/>
+                <field name="route"/>
+                <field name="module_id"/>
+                <field name="method"/>
+                <filter name="disabled" string="Disabled" domain="[('enabled', '=', False)]"/>
+                <filter name="stale" string="Gone from code" domain="[('stale', '=', True)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_module" string="Module"
+                            context="{'group_by': 'module_id'}"/>
+                    <filter name="group_method" string="HTTP Method"
+                            context="{'group_by': 'method'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_core_api_endpoint" model="ir.actions.act_window">
+        <field name="name">API Endpoints</field>
+        <field name="res_model">core.api.endpoint</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="context">{'search_default_group_module': 1, 'create': False, 'delete': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No endpoint registered yet</p>
+            <p>Routes decorated with <code>@log_api</code> are collected when their
+               module is installed. Use the buttons here to switch one off.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_core_api_endpoint" name="API Endpoints"
+              parent="menu_core_api_root" action="action_core_api_endpoint"
+              sequence="5"/>
+</odoo>

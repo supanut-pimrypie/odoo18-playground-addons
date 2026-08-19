@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_core_api_log_list" model="ir.ui.view">
+        <field name="name">core.api.log.list</field>
+        <field name="model">core.api.log</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="state == 'error'" create="false">
+                <field name="create_date"/>
+                <field name="direction"/>
+                <field name="method"/>
+                <field name="name"/>
+                <field name="endpoint_id" optional="hide"/>
+                <field name="endpoint_id"/>
+                <field name="module_id"/>
+                <field name="user_id"/>
+                <field name="remote_addr"/>
+                <field name="status_code"/>
+                <field name="duration_ms"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_core_api_log_form" model="ir.ui.view">
+        <field name="name">core.api.log.form</field>
+        <field name="model">core.api.log</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="direction"/>
+                            <field name="method"/>
+                            <field name="name"/>
+                            <field name="endpoint_id"/>
+                            <field name="create_date"/>
+                        </group>
+                        <group>
+                            <field name="state"/>
+                            <field name="status_code"/>
+                            <field name="duration_ms"/>
+                            <field name="user_id"/>
+                            <field name="remote_addr"/>
+                            <field name="forwarded_for"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Request">
+                            <field name="request_headers"/>
+                            <field name="request_body"/>
+                        </page>
+                        <page string="Response">
+                            <field name="response_body"/>
+                        </page>
+                        <page string="Error" invisible="state != 'error'">
+                            <field name="error"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_core_api_log_search" model="ir.ui.view">
+        <field name="name">core.api.log.search</field>
+        <field name="model">core.api.log</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="endpoint_id" optional="hide"/>
+                <field name="endpoint_id"/>
+                <field name="module_id"/>
+                <field name="user_id"/>
+                <field name="remote_addr"/>
+                <filter name="inbound" string="Inbound" domain="[('direction', '=', 'inbound')]"/>
+                <filter name="outbound" string="Outbound" domain="[('direction', '=', 'outbound')]"/>
+                <separator/>
+                <filter name="errors" string="Errors" domain="[('state', '=', 'error')]"/>
+                <separator/>
+                <filter name="today" string="Today"
+                        domain="[('create_date', '&gt;=', datetime.datetime.combine(context_today(), datetime.time(0,0,0)))]"/>
+                <filter name="last_week" string="Last 7 days"
+                        domain="[('create_date', '&gt;=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_direction" string="Direction" context="{'group_by': 'direction'}"/>
+                    <filter name="group_endpoint" string="Endpoint" context="{'group_by': 'name'}"/>
+                    <filter name="group_state" string="State" context="{'group_by': 'state'}"/>
+                    <filter name="group_module" string="Module" context="{'group_by': 'module_id'}"/>
+                    <filter name="group_user" string="Caller" context="{'group_by': 'user_id'}"/>
+                    <filter name="group_date" string="Date" context="{'group_by': 'create_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_core_api_log_graph" model="ir.ui.view">
+        <field name="name">core.api.log.graph</field>
+        <field name="model">core.api.log</field>
+        <field name="arch" type="xml">
+            <graph string="API Calls" sample="1">
+                <field name="create_date" interval="day"/>
+                <field name="state"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_core_api_log_pivot" model="ir.ui.view">
+        <field name="name">core.api.log.pivot</field>
+        <field name="model">core.api.log</field>
+        <field name="arch" type="xml">
+            <pivot string="API Calls" sample="1">
+                <field name="endpoint_id" type="row"/>
+                <field name="state" type="col"/>
+                <field name="duration_ms" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_core_api_log" model="ir.actions.act_window">
+        <field name="name">API Logs</field>
+        <field name="res_model">core.api.log</field>
+        <field name="view_mode">list,form,graph,pivot</field>
+    </record>
+
+    <menuitem id="menu_core_api_root" name="API" sequence="90"
+              groups="base.group_system"/>
+    <menuitem id="menu_core_api_log" name="API Logs"
+              parent="menu_core_api_root" action="action_core_api_log"/>
+</odoo>

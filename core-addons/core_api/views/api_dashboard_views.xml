@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_core_api_dashboard" model="ir.actions.client">
+        <field name="name">API Dashboard</field>
+        <field name="tag">core_api_dashboard</field>
+    </record>
+
+    <menuitem id="menu_core_api_dashboard" name="Dashboard"
+              parent="menu_core_api_root" action="action_core_api_dashboard"
+              sequence="0"/>
+</odoo>

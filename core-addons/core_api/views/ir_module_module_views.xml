@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- module level kill switch. Same rule as the endpoint list: read-only,
+         the buttons are the only way to change anything. -->
+    <record id="view_api_module_list" model="ir.ui.view">
+        <field name="name">ir.module.module.api.list</field>
+        <field name="model">ir.module.module</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false"
+                  decoration-muted="not api_enabled">
+                <field name="api_enabled" widget="boolean_toggle" readonly="1"
+                       string="API Enabled"/>
+                <field name="name"/>
+                <field name="shortdesc"/>
+                <field name="api_endpoint_count" string="Routes"/>
+                <field name="state"/>
+                <button name="action_api_disable" type="object" string="Disable"
+                        icon="fa-ban" invisible="not api_enabled or state != 'installed'"
+                        confirm="Disable every API route of this module? They will
+                                 all answer 503 until it is enabled again."/>
+                <button name="action_api_enable" type="object" string="Enable"
+                        icon="fa-play" invisible="api_enabled or state != 'installed'"
+                        confirm="Enable this module's API routes? Each route still
+                                 obeys its own switch."/>
+                <button name="action_view_api_endpoints" type="object"
+                        string="Routes" icon="fa-list"
+                        invisible="state != 'installed'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_core_api_module" model="ir.actions.act_window">
+        <field name="name">API Modules</field>
+        <field name="res_model">ir.module.module</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_api_module_list"/>
+        <field name="domain">[('api_endpoint_ids', '!=', False), ('state', '=', 'installed')]</field>
+        <field name="context">{'create': False, 'delete': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No module exposes an API yet</p>
+            <p>A module shows up here once one of its routes uses
+               <code>@log_api</code>.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_core_api_module" name="API Modules"
+              parent="menu_core_api_root" action="action_core_api_module"
+              sequence="6"/>
+</odoo>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.base.api</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="API" string="API" name="core_api">
+                    <block title="Master Switches"
+                           help="Kill switches for everything built on core_api.">
+                        <setting id="core_api_inbound"
+                                 help="Off: every route using @log_api answers 503 without running.">
+                            <field name="core_api_inbound_enabled"/>
+                        </setting>
+                        <setting id="core_api_outbound"
+                                 help="Off: core.api.client._call() refuses to fire.">
+                            <field name="core_api_outbound_enabled"/>
+                        </setting>
+                    </block>
+                    <block title="Logs">
+                        <setting id="core_api_retention"
+                                 help="A monthly cron deletes API logs older than this.">
+                            <field name="core_api_log_retention_days"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,51 @@
+services:
+  odoo:
+    build: .
+    image: odoo18-playground
+    container_name: odoo18
+    restart: unless-stopped
+    ports:
+      - "${ODOO_PORT:-8069}:8069"
+      - "${ODOO_GEVENT_PORT:-8072}:8072"
+    environment:
+      # the odoo entrypoint turns these into --db_host/--db_port/--db_user/--db_password.
+      # they must NOT also be set in odoo.conf, or the file wins.
+      # ':?' makes compose refuse to start when .env is missing, instead of
+      # booting with blank values and restart-looping on "host db not known"
+      HOST: ${DB_HOST:?set DB_HOST in .env (cp .env.example .env)}
+      PORT: ${DB_PORT:-5432}
+      USER: ${DB_USER:?set DB_USER in .env}
+      PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    # ODOO_UPDATE: modules to upgrade on boot, e.g. "core_api" or "all".
+    # A container start is a fresh python process, so this is the reliable way
+    # to pick up model/field changes. Empty on a normal run.
+    # ODOO_DEV: odoo dev mode, local only. Note "reload" needs inotify events
+    # from the host, which Docker Desktop bind mounts on Windows do not deliver.
+    command: >
+      odoo -c /etc/odoo/odoo.conf
+      -d ${DB_NAME:?set DB_NAME in .env}
+      --db-filter=^${DB_NAME:?}$$
+      ${ODOO_UPDATE:+-u ${ODOO_UPDATE}}
+      ${ODOO_DEV:+--dev=${ODOO_DEV}}
+    volumes:
+      - odoo-filestore:/var/lib/odoo
+      - ./config/odoo.conf:/etc/odoo/odoo.conf:ro
+      - ./core-addons:/mnt/extra-addons/core-addons:ro
+      - ./pimrypie-addons:/mnt/extra-addons/pimrypie-addons:ro
+    extra_hosts:
+      # lets DB_HOST=host.docker.internal reach a postgres on the host (Linux too)
+      - "host.docker.internal:host-gateway"
+    # if the central postgres is itself a container, joining its network is
+    # tighter than going out through the host: uncomment both blocks and set
+    # DB_HOST to the postgres container name.
+    # networks:
+    #   - default
+    #   - dbnet
+
+# networks:
+#   dbnet:
+#     external: true
+#     name: postgresql_default
+
+volumes:
+  odoo-filestore:
