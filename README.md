@@ -35,6 +35,37 @@ always a missing database or wrong credentials: `docker compose logs -f odoo`.
 * Both addon directories are mounted read-only at `/mnt/extra-addons`. Editing a
   file on the host is enough; restart the container to reload python code.
 
+### Splitting the cron off (optional)
+
+One container runs both the web and the cron threads, which is fine until a
+long job — a `core_backup` dump of a large database, say — starts holding a
+worker while requests queue behind it. A second container fixes that:
+
+```bash
+docker compose --profile cron up -d
+```
+
+Set `WEB_CRON_THREADS=0` in `.env` at the same time, so `ir.cron` runs only in
+`odoo18-cron`. Without the profile flag nothing changes: the cron service is
+declared but does not start, and the default stack stays one container.
+
+The two configs differ in exactly two lines — `config/odoo-cron.conf` sets
+`http_enable = False` and `max_cron_threads = 2`.
+
+Worth knowing:
+
+* **Both containers share the filestore volume**, not a copy. A backup taken by
+  the cron container has to see the attachments the web container wrote.
+* **The Backup now button still runs in the web container**, because it is an
+  HTTP request. That container needs the backup directory mounted and writable
+  too, which the compose file already does.
+* **The cron service takes no `ODOO_UPDATE`.** Two containers running `-u`
+  against one database at the same time fight over the registry. Upgrade with
+  the `odoo` service, then bring the cron one up.
+* Leaving cron threads on in both is not dangerous, only wasteful: `ir_cron`
+  claims jobs with `FOR NO KEY UPDATE SKIP LOCKED`, so a job cannot run twice.
+  Setting `WEB_CRON_THREADS=0` just stops the web workers polling for nothing.
+
 ### Upgrading after a code change
 
 Python is imported once per process. A running server that already loaded a
@@ -96,6 +127,8 @@ docker compose run --rm odoo odoo -c /etc/odoo/odoo.conf -d test_db -i core_api 
   | API Endpoints | One row per route, kanban grouped by module, toggle only. |
   | API Modules | Switch off every route of one module at once. |
   | API Logs | The raw rows, with payloads. |
+* `core-addons/core_backup` — scheduled backups of the database and filestore
+  to a directory on disk, listed under **Backup > Backups**.
 * `pimrypie-addons/api_demo` — worked examples of every core_api pattern.
   Install it, hit the routes, watch the rows appear under API > API Endpoints.
   Covers public, session, bearer, error and outbound routes. Delete it once the
@@ -234,3 +267,64 @@ typo in a schema never turns into a 500 for the caller.
 Copy the shape of `core-addons/core_api/tests/test_controller.py`: an `HttpCase`
 with `self.url_open()`. Its controller is declared inside the test module, so it
 only exists while the suite runs.
+
+## Backups
+
+`core_backup` writes a native-format Odoo archive on a daily cron (02:00) into
+the directory named by `core_backup.dir`, mounted out to `./backups` on the
+host. Settings > Backup holds the switch, the directory, the retention window
+and whether to include the filestore.
+
+The archive is laid out exactly like the one Odoo's own database manager
+produces, so nothing here invents a private format:
+
+```
+dump.sql        plain SQL from pg_dump --no-owner, first member of the zip
+filestore/      copy of the filestore, when "with filestore" is on
+manifest.json   odoo version, pg version, and the installed module list
+```
+
+`odoo.service.db.dump_db()` is not what produces it. That function is decorated
+with `@check_db_management_enabled`, and this deployment runs `list_db = False`,
+so it raises `AccessDenied` even when called from python. `core_backup` repeats
+its dozen lines using the helpers that are not gated. Leaving `list_db = False`
+is deliberate: the database is shared, and the web database manager must not be
+able to drop it.
+
+### Restoring
+
+The web restore is disabled for the same reason, so restore by hand. Never
+restore over a live database — make a new one and point at it:
+
+```bash
+unzip backups/odoo18_core_20260820_020000.zip -d /tmp/restore
+```
+```bash
+createdb -T template0 -U odoo odoo18_restored
+```
+```bash
+psql -U odoo -d odoo18_restored -f /tmp/restore/dump.sql
+```
+```bash
+cp -r /tmp/restore/filestore /var/lib/odoo/filestore/odoo18_restored
+```
+
+Then start Odoo with `-d odoo18_restored`. Check `manifest.json` first if the
+archive is old: restoring into a different Odoo minor version needs an upgrade
+run, and a different PostgreSQL major version needs the matching client.
+
+### What to watch
+
+* **Backup now blocks.** `workers = 0` means one worker thread, so a manual run
+  freezes the whole instance until the dump finishes. Fine for a playground,
+  not for a busy database — leave it to the cron there.
+* **Retention only sweeps after a successful backup.** A run of failing backups
+  will not age out the last archives that still work.
+* **The directory has to be writable by the odoo user**, uid 100 in the
+  `odoo:18` image. Docker Desktop bind mounts are permissive enough that
+  `./backups` just works; a named volume or a Linux host directory is created
+  root-owned and every run then ends in `error` with `Permission denied`.
+  `chown 100:101` the directory in that case.
+* **The cron cannot run when Odoo is down.** A host-level cron does not have
+  that weakness; this module trades it for being visible and triggerable from
+  the UI.

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.core.backup</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Backup" string="Backup" name="core_backup">
+                    <block title="Scheduled Backups"
+                           help="A daily cron dumps the database and the filestore to disk.">
+                        <setting id="core_backup_switch"
+                                 help="Off: the cron logs a skipped run and writes nothing.">
+                            <field name="core_backup_enabled"/>
+                        </setting>
+                        <setting id="core_backup_filestore"
+                                 help="Off: the archive holds the database only.">
+                            <field name="core_backup_with_filestore"/>
+                        </setting>
+                    </block>
+                    <block title="Storage">
+                        <setting id="core_backup_directory"
+                                 help="Server path, created if missing. Only files recorded on a backup row are ever deleted from it.">
+                            <field name="core_backup_dir"/>
+                        </setting>
+                        <setting id="core_backup_retention"
+                                 help="Older archives are dropped after a successful backup, never after a failed one.">
+                            <field name="core_backup_retention_days"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

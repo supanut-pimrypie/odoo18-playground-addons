@@ -25,10 +25,14 @@ services:
       odoo -c /etc/odoo/odoo.conf
       -d ${DB_NAME:?set DB_NAME in .env}
       --db-filter=^${DB_NAME:?}$$
+      --max-cron-threads=${WEB_CRON_THREADS:-1}
       ${ODOO_UPDATE:+-u ${ODOO_UPDATE}}
       ${ODOO_DEV:+--dev=${ODOO_DEV}}
     volumes:
       - odoo-filestore:/var/lib/odoo
+      # core_backup writes here; bind-mounted so the archives are
+      # reachable from the host and survive the volume
+      - ${BACKUP_DIR:-./backups}:/var/lib/odoo/backups
       - ./config/odoo.conf:/etc/odoo/odoo.conf:ro
       - ./core-addons:/mnt/extra-addons/core-addons:ro
       - ./pimrypie-addons:/mnt/extra-addons/pimrypie-addons:ro
@@ -38,6 +42,42 @@ services:
     # if the central postgres is itself a container, joining its network is
     # tighter than going out through the host: uncomment both blocks and set
     # DB_HOST to the postgres container name.
+    # networks:
+    #   - default
+    #   - dbnet
+
+  # Optional cron-only container:
+  #   docker compose --profile cron up -d
+  # Without --profile it does not start, so the default stack stays one
+  # container. Set WEB_CRON_THREADS=0 in .env when you enable it.
+  odoo-cron:
+    profiles: ["cron"]
+    build: .
+    image: odoo18-playground
+    container_name: odoo18-cron
+    restart: unless-stopped
+    # no ports: this container serves no http at all
+    environment:
+      HOST: ${DB_HOST:?set DB_HOST in .env (cp .env.example .env)}
+      PORT: ${DB_PORT:-5432}
+      USER: ${DB_USER:?set DB_USER in .env}
+      PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    # deliberately no ODOO_UPDATE and no ODOO_DEV here: two containers running
+    # -u against the same database at once fight over the registry. Upgrade
+    # with the odoo service, then bring this one up.
+    command: >
+      odoo -c /etc/odoo/odoo-cron.conf
+      -d ${DB_NAME:?set DB_NAME in .env}
+    volumes:
+      # the same filestore volume as odoo, not a copy: a backup taken here
+      # has to see the attachments the web container wrote
+      - odoo-filestore:/var/lib/odoo
+      - ${BACKUP_DIR:-./backups}:/var/lib/odoo/backups
+      - ./config/odoo-cron.conf:/etc/odoo/odoo-cron.conf:ro
+      - ./core-addons:/mnt/extra-addons/core-addons:ro
+      - ./pimrypie-addons:/mnt/extra-addons/pimrypie-addons:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # networks:
     #   - default
     #   - dbnet

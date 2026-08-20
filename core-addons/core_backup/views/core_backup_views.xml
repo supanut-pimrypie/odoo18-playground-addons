@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_core_backup_list" model="ir.ui.view">
+        <field name="name">core.backup.list</field>
+        <field name="model">core.backup</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="state == 'error'" decoration-muted="state == 'running'"
+                  create="false" edit="false">
+                <field name="create_date"/>
+                <field name="name"/>
+                <field name="db_name"/>
+                <field name="with_filestore"/>
+                <field name="size_display"/>
+                <field name="duration_ms"/>
+                <field name="path" optional="hide"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_core_backup_form" model="ir.ui.view">
+        <field name="name">core.backup.form</field>
+        <field name="model">core.backup</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false">
+                <header>
+                    <button name="action_backup_now" type="object" string="Backup now"
+                            class="btn-primary"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="running,done"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="path"/>
+                            <field name="db_name"/>
+                            <field name="with_filestore"/>
+                        </group>
+                        <group>
+                            <field name="create_date"/>
+                            <field name="size_display"/>
+                            <field name="duration_ms"/>
+                        </group>
+                    </group>
+                    <group string="Error" invisible="state != 'error'">
+                        <field name="error" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_core_backup_search" model="ir.ui.view">
+        <field name="name">core.backup.search</field>
+        <field name="model">core.backup</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="db_name"/>
+                <filter name="done" string="Done" domain="[('state', '=', 'done')]"/>
+                <filter name="errors" string="Errors" domain="[('state', '=', 'error')]"/>
+                <filter name="running" string="Running" domain="[('state', '=', 'running')]"/>
+                <separator/>
+                <filter name="last_week" string="Last 7 days"
+                        domain="[('create_date', '&gt;=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_state" string="State" context="{'group_by': 'state'}"/>
+                    <filter name="group_db" string="Database" context="{'group_by': 'db_name'}"/>
+                    <filter name="group_date" string="Date" context="{'group_by': 'create_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_core_backup" model="ir.actions.act_window">
+        <field name="name">Backups</field>
+        <field name="res_model">core.backup</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_core_backup_root" name="Backup" sequence="91"
+              groups="base.group_system"/>
+    <menuitem id="menu_core_backup" name="Backups"
+              parent="menu_core_backup_root" action="action_core_backup"/>
+</odoo>
